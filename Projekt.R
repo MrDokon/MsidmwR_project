@@ -5,11 +5,11 @@ df <- janitor::clean_names(df0)
 #wczytanie bibliotek
 library(tidyverse)
 library(psych)
-library(FactoMiner)
+library(FactoMineR)
 library(factoextra)
 library(GGally)
 library(fpc)
-
+library(DataExplorer)
 #sprawdzenie obserwacji brakujących
 plot_intro(df) + 
   theme_minimal() +
@@ -78,10 +78,13 @@ dane_pca0$var$coord
 #wybranie dwóch wymiarów
 dane_pca <- PCA(df_standarized, graph = F, ncp = 2)
 #biplot
-fviz_pca_var(dane_pca, repel = TRUE)
+fviz_pca_var(dane_pca, repel = TRUE,
+             col.var = "contrib",
+             gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"),
+             labelsize = 5, col.circle = "grey40", )
 # wykres obserwacji wg wspolczynnikow skladowych
-fviz_pca_ind(dane_pca, repel = TRUE, 
-             addEllipses = T)
+fviz_pca_ind(dane_pca, repel = TRUE,  pointsize = "contrib",
+             pointshape = 21, fill = "#4b86b4", col.point = "white")
 
 #Analiza skupień
 
@@ -119,7 +122,7 @@ ggplot(df_cluster_tidy,
              ncol = 4) +
   ylab("") +
   xlab("") +
-  theme_light()
+  theme_light()+ theme(strip.text = element_text(size=10, color = "black"))
 #interpetacja
 #grupowanie kmeans
 x <- rep(0, 10) # wektor z wss, poczatkowo zerowy
@@ -129,29 +132,27 @@ for(i in 1:10)
 # wykres osypiska - 2 lub 3 grupu
 ggplot(x %>% as.data.frame(),
        aes(row_number(-x),x)) +
-  geom_line() +
-  geom_point(col = "gray", size = 4) +
-  theme_light() + xlab("") + ylab("") +
+  geom_line(size = 1.5, alpha = 0.5) +
+  geom_point(col = "gray30", size = 4) +
+  theme_minimal() + xlab("") + ylab("") +
   ggtitle("Wykres osypiska")
 
-#### kryterium ch (Calinskiego-Harabasza)
+#
 km.ch <-  kmeansruns(df_standarized, criterion = "ch", runs = 10)
-plot(km.ch$crit, type = "b")
-#wykres
-km_crit <- km.ch$crit
-ggplot(km_crit %>% as.data.frame(),
-       aes(1:10, km_crit)) +
-  geom_line() +
-  geom_point(col = "gray", size = 4) +
-  theme_light() + xlab("") + ylab("") +
-  ggtitle("Kryterium Calinskiego-Harabasza")
-#kryterium asw
 km.asw <-  kmeansruns(df_standarized, criterion = "asw", runs = 10)
-plot(km.asw$crit, type = "b")
-km_crit1 <- km.asw$crit
-ggplot(km_crit1 %>% as.data.frame(),
-       aes(1:10, km_crit1)) +
-  geom_line() +
-  geom_point(col = "gray", size = 4) +
-  theme_light() + xlab("") + ylab("") +
-  ggtitle("Kryterium Average Silhouette")
+
+kryteria <-  cbind.data.frame(`Caliński - Harabasz` = km.ch$crit,
+                 `Average Silhouette` = km.asw$crit)
+kryteria_pivot <- kryteria %>%
+  mutate(index = 1:10) %>% 
+  pivot_longer(`Caliński - Harabasz`:`Average Silhouette`,
+               names_to = "kryterium", values_to = "Wartość")
+kryteria_pivot
+ggplot(kryteria_pivot,
+       aes(index, `Wartość`)) +
+  geom_line(size = 1.5, alpha = 0.5) +
+  geom_point(col = "gray30", size = 4) +
+  theme_minimal() + xlab("") + ylab("") + 
+  facet_wrap(vars(kryterium), scales = "free") +
+  theme(strip.text = element_text(size=15))
+#
