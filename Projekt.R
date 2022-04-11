@@ -81,7 +81,7 @@ dane_pca <- PCA(df_standarized, graph = F, ncp = 2)
 fviz_pca_var(dane_pca, repel = TRUE,
              col.var = "contrib",
              gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"),
-             labelsize = 5, col.circle = "grey40", )
+             labelsize = 5, col.circle = "grey40" )
 # wykres obserwacji wg wspolczynnikow skladowych
 fviz_pca_ind(dane_pca, repel = TRUE,  pointsize = "contrib",
              pointshape = 21, fill = "#4b86b4", col.point = "white")
@@ -122,7 +122,8 @@ ggplot(df_cluster_tidy,
              ncol = 4) +
   ylab("") +
   xlab("") +
-  theme_light()+ theme(strip.text = element_text(size=10, color = "black"))
+  theme_light()+ 
+  theme(strip.text = element_text(size=10, color = "black"))
 #interpetacja
 #grupowanie kmeans
 x <- rep(0, 10) # wektor z wss, poczatkowo zerowy
@@ -132,12 +133,12 @@ for(i in 1:10)
 # wykres osypiska - 2 lub 3 grupu
 ggplot(x %>% as.data.frame(),
        aes(row_number(-x),x)) +
-  geom_line(size = 1.5, alpha = 0.5) +
+  geom_line(size = 1.5, alpha = 0.5, col = "gray60") +
   geom_point(col = "gray30", size = 4) +
   theme_minimal() + xlab("") + ylab("") +
   ggtitle("Wykres osypiska")
 
-#
+#Kryterium Average Silhouette i Calinskiego - Harabasza
 km.ch <-  kmeansruns(df_standarized, criterion = "ch", runs = 10)
 km.asw <-  kmeansruns(df_standarized, criterion = "asw", runs = 10)
 
@@ -150,9 +151,83 @@ kryteria_pivot <- kryteria %>%
 kryteria_pivot
 ggplot(kryteria_pivot,
        aes(index, `Wartość`)) +
-  geom_line(size = 1.5, alpha = 0.5) +
+  geom_line(size = 1.5, alpha = 0.5, col = "gray60" ) +
   geom_point(col = "gray30", size = 4) +
   theme_minimal() + xlab("") + ylab("") + 
   facet_wrap(vars(kryterium), scales = "free") +
   theme(strip.text = element_text(size=15))
+#kmeans
+df_standarized %>% glimpse()
+kmeans_df <-  kmeans(df_standarized, centers = 2, nstart = 10)
+df_cluster$cluster.km <- kmeans_df$cluster %>% as.factor()
 #
+plot_boxplot(df_cluster, by = "cluster.km")
+df_cluster_tidy <- df_cluster %>% 
+  pivot_longer(gdp_pc:working_pop_pct,
+               values_to = "value",
+               names_to = "zmienna") %>% 
+  pivot_longer(cluster.w:cluster.km,
+               values_to = "cluster_value",
+               names_to = "cluster")
+#wykres
+ggplot(df_cluster_tidy %>% filter(cluster == "cluster.km"),
+       aes(value,cluster_value, col = cluster_value, fill = cluster_value))+
+  geom_boxplot(alpha = .5)+
+  facet_wrap(vars(zmienna),
+             scales = "free",
+             ncol = 4) +
+  ylab("") +
+  xlab("") +
+  theme_light()+ 
+  theme(strip.text = element_text(size=10, color = "black"))
+#Estonia_ porównanie z hclust dla gdp_pc
+ggplot(df_cluster_tidy %>% filter(zmienna == "gdp_pc"),
+       aes(value,cluster_value, col = cluster_value, fill = cluster_value))+
+  geom_boxplot(alpha = .5)+
+  facet_wrap(vars(cluster),
+             scales = "free",
+             ncol = 4)+
+  ylab("") +
+  xlab("") +
+  theme_light()+ 
+  theme(strip.text = element_text(size=10, color = "black")) +
+  geom_curve(data = data.frame(x = 10494.2543210168, y = 2.26430671098796, xend = 12638.3521709584, yend = 2.01562917599984, cluster = "cluster.km"),
+             mapping = aes(x = x, y = y, xend = xend, yend = yend),
+             arrow = arrow(30L, unit(0.1, "inches"),
+                           "last", "closed"),
+             inherit.aes = FALSE) + 
+  geom_text(data = data.frame(x = 7153.40377558588, y = 2.31956838542976, label = "Estonia", cluster = "cluster.km"),
+            mapping = aes(x = x, y = y, label = label),
+            colour = "#04cc82", inherit.aes = FALSE) +
+  ggtitle("GDP per capita kmeans vs hclust")
+#kmeans do wykresu
+kmeans_do_wykresu <-  dane_pca$ind$coord %>%
+  as.data.frame() %>%
+  mutate(cluster_km = df_cluster$cluster.km )
+#kmeans wykres
+ggplot(kmeans_do_wykresu,
+       aes(Dim.1,Dim.2, col = cluster_km)) + 
+  geom_point() + theme_minimal() + ggrepel::geom_text_repel(label = rownames(kmeans_do_wykresu))
+
+#kmeans do wykresu 2
+kmeans_do_wykresu <- kmeans_do_wykresu %>%
+  mutate(cluster_hcl = df_cluster$cluster.w)
+# na koniec porównać cluster km = 3 vs cluster km  = 2 vs hclust
+kmeans_df1 <-  kmeans(df_standarized, centers = 3, nstart = 10)
+kmeans_do_wykresu$cluster_km_3 <- kmeans_df1$cluster %>% as.factor()
+names(kmeans_do_wykresu)[3] <- "cluster_km_2"
+
+kmeans_do_wykresu_ostatni_wykres <-  kmeans_do_wykresu %>% 
+  mutate(country = rownames(kmeans_do_wykresu)) %>% 
+  pivot_longer(cluster_km_2:cluster_km_3,
+               names_to = "cluster_type",
+               values_to = "cluster_value")
+#ostatni wykres
+ggplot(kmeans_do_wykresu_ostatni_wykres,
+       aes(Dim.1,Dim.2, col = cluster_value)) +
+  geom_point() + 
+  facet_wrap(vars(cluster_type)) + 
+  ggrepel::geom_text_repel(
+    label = kmeans_do_wykresu_ostatni_wykres$country) + 
+  theme_light() + 
+  theme(strip.text = element_text(size=10, color = "black"))
