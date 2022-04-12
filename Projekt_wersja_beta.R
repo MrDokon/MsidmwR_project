@@ -211,26 +211,28 @@ ggplot(df_long %>% filter(zmienna == "gdp_pc") %>%
 #Kmeans vs Hclust PCA
 
 #Przygotowanie danych
-df  <- df %>% mutate(dim.1 = pca_object$ind$coord[,1],
-                     dim.2 = pca_object$ind$coord[,2])
+dflong_last_plot <-  pca_object$ind$coord %>%
+  as.data.frame() %>%
+  mutate(`kmeans` = df$cluster.km,
+         `hclust` = df$cluster.w,
+         country = rownames(.)) %>% 
+   pivot_longer(kmeans:hclust,
+                values_to = "cluster_value",
+                names_to = "cluster_name")
 
 #Przygotowanie danych - postać długa
-df_long <- df %>% 
-  pivot_longer(gdp_pc:working_pop_pct,
-               names_to = "zmienna",
-               values_to = "zmienna_value") %>% 
-  pivot_longer(cluster.w:cluster.km,
-               names_to = "cluster",
-               values_to = "cluster_value")
-
-
+colnames(dflong_last_plot)
 #Kmeans vs Hclust - ostatni wykres
-df_long %>% as_tibble()
-
-ggplot(df_long,
-       aes(dim.1, dim.2),
-       col = cluster_value,
-       label = country) +
+ggplot(dflong_last_plot,
+       aes(Dim.1,Dim.2, col = cluster_value)) + 
   geom_point() +
-  ggrepel::geom_text_repel(max.overlaps = 300, label = df_long$country) + 
-  facet_wrap(vars(cluster))
+  ggrepel::geom_text_repel(aes(label = country)) +
+  facet_wrap(vars(cluster_name)) +
+  xlab("") +
+  ylab("") +
+  theme_light() + 
+  theme(strip.text = element_text(size=11, color = "black")) +
+  ggtitle("GDP per capita kmeans vs hclust") +
+  scale_fill_manual(values = c("#9a0707","#0052a3","#000a14")) +
+  scale_color_manual(values = c("#9a0707","#0052a3","#000a14")) +
+  gghighlight::gghighlight()
