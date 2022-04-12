@@ -29,12 +29,6 @@ df %>% glimpse()
 #weeknd_work_pct:	Procent ludzi pracujących  w weekendy (15-64)
 #emp_deadline_pct:	Procent ludzi pracujących intensywnie i z deadlinem(15-64)
 #working_pop_pct:	Procent populacji w wieku produkcyjnym (15-64)
-
-#zróżnicowanie zmiennych, współczynnik zmienności:
-sapply(df[,-1],
-       function(x) sd(x) / mean(x) * 100) %>%
-  as_tibble(rownames = colnames(df[,1])) # working_pop_pct quasi stała, ale zbadamy, czy coś z nią można osiągnąć
-
 #sprawdzenie pod kątem PCA
 #korelacja pomiędzy zmiennymi
 corrplot::corrplot(cor(df[,-1]),
@@ -68,28 +62,31 @@ rownames(df_standarized) <- df$country
 #PCA
 
 dane_pca0 <- PCA(df_standarized, graph = F, ncp = 8)
-#Percentage of explained variances
+
+#Pomiar rozbieżności pomiędzy modelem a rzeczywistymi danymi
 fviz_screeplot(dane_pca0, addlabels = TRUE)
 #Zbadanie wymiarów
 dane_pca0$var$coord
-#Pierwszy wymiar - PKB, wydatki na research & development
+#Pierwszy wymiar - PKB, wydatki na research & development, korzystanie z chmury
 #Drugi wymiar - praca w weekendy i deadliny
 
-#wybranie dwóch wymiarów
+#wybranie dwóch wymiarów ze względu na jakość zmiennych
 dane_pca <- PCA(df_standarized, graph = F, ncp = 2)
 #biplot
 fviz_pca_var(dane_pca, repel = TRUE,
              col.var = "contrib",
              gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"),
-             labelsize = 5, col.circle = "grey40" )
-# wykres obserwacji wg wspolczynnikow skladowych
+             labelsize = 5, col.circle = "grey40")
+# wykres obserwacji
 fviz_pca_ind(dane_pca, repel = TRUE,  pointsize = "contrib",
              pointshape = 21, fill = "#4b86b4", col.point = "white")
 
 #Analiza skupień
 
 #wykresy punktowe danych
-ggpairs(df_standarized) #niewiele tu widać
+ggpairs(df_standarized) +
+  theme_light() +
+  theme(strip.text = element_text(size=10, color = "black"))#niewiele tu widać
 #macierz dystansu
 d <- dist(df_standarized, method = "euclidean")
 #wizualizacja macierzy dystansu
@@ -98,13 +95,16 @@ fviz_dist(d)
 hc1 <- hclust(d, method = "ward.D2")
 #wizualizacja dendogramu
 fviz_dend(hc1)
-
 #tniemy w 3 miejscach
 #liczebność grup
 cutree(hc1, k = 3) %>% table() # mniej wiecej rowne
 #na wykresie
-fviz_dend(hc1, k = 3, rect = TRUE,
-          color_labels_by_k = TRUE) + ylab("")
+fviz_dend(hc1,
+          k = 3, rect = TRUE, rect_border = "gray80",                 # label size
+          k_colors = c("#000a14", "#0052a3", "#9a0707"),
+          color_labels_by_k = TRUE, lwd = 1.1) + ylab("")
+fviz_dend()
+?fviz_dend
 #dokładam podział do danych
 df_cluster <- df
 df_cluster$cluster.w <- cutree(hc1, k = 3) %>% as_factor()
@@ -123,7 +123,8 @@ ggplot(df_cluster_tidy,
   ylab("") +
   xlab("") +
   theme_light()+ 
-  theme(strip.text = element_text(size=10, color = "black"))
+  theme(strip.text = element_text(size=10, color = "black")) +
+  ggtitle("Charakterystyka grup według hclust")
 #interpetacja
 #grupowanie kmeans
 x <- rep(0, 10) # wektor z wss, poczatkowo zerowy
@@ -156,6 +157,8 @@ ggplot(kryteria_pivot,
   theme_minimal() + xlab("") + ylab("") + 
   facet_wrap(vars(kryterium), scales = "free") +
   theme(strip.text = element_text(size=15))
+
+
 #kmeans
 df_standarized %>% glimpse()
 kmeans_df <-  kmeans(df_standarized, centers = 2, nstart = 10)
@@ -231,3 +234,20 @@ ggplot(kmeans_do_wykresu_ostatni_wykres,
     label = kmeans_do_wykresu_ostatni_wykres$country) + 
   theme_light() + 
   theme(strip.text = element_text(size=10, color = "black"))
+#
+df0 %>% glimpse()
+df %>% glimpse()
+dane_pca %>% glimpse()
+dane_pca0 %>% glimpse()
+df_cluster %>% glimpse()
+df_cluster_tidy %>% glimpse()
+df_standarized %>% glimpse()
+hc1 %>% glimpse()
+km.asw %>% glimpse()    
+km.ch %>% glimpse()
+kmeans_df %>% glimpse()
+kmeans_df1 %>% glimpse()
+kmeans_do_wykresu %>% glimpse()
+kmeans_do_wykresu_ostatni_wykres %>% glimpse()
+kryteria %>% glimpse()
+kryteria_pivot %>% glimpse()
